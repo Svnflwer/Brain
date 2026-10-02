@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Мега-Головоломка</title>
+    <style>
+        body { margin: 0; padding: 0; background: #0a0a14; color: white; font-family: sans-serif; text-align: center; user-select: none; touch-action: none; }
+        .screen { display: none; position: fixed; width: 100vw; height: 100vh; left: 0; top: 0; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box; padding: 20px; }
+        .active { display: flex; }
+        .btn { padding: 14px 25px; margin: 8px; background: #1a1a3a; color: #00d2ff; border: 2px solid #00d2ff; border-radius: 12px; font-size: 16px; font-weight: bold; cursor: pointer; width: 80%; max-width: 280px; box-shadow: 0 0 10px rgba(0,210,255,0.2); }
+        .btn:active { background: #00d2ff; color: #000; }
+        .avatar { font-size: 50px; margin: 10px; cursor: pointer; display: inline-block; padding: 10px; border-radius: 50%; transition: 0.2s; }
+        .selected-av { background: #00d2ff; box-shadow: 0 0 15px #00d2ff; transform: scale(1.1); }
+        #canvas-container { display: flex; gap: 10px; margin-top: 15px; }
+        canvas { background: #111; border: 2px solid #ff0055; border-radius: 8px; max-width: 45vw; }
+    </style>
+</head>
+<body>
+
+    <!-- ЭКРАН 1: АВАТАРКА -->
+    <div id="scr-avatar" class="screen active">
+        <h2 style="color: #00d2ff; text-shadow: 0 0 10px #00d2ff;">ВЫБЕРИ СВОЮ АВАТАРКУ:</h2>
+        <div>
+            <div class="avatar" onclick="setAvatar('🦊', this)">🦊</div>
+            <div class="avatar" onclick="setAvatar('🦄', this)">🦄</div>
+            <div class="avatar" onclick="setAvatar('🐱', this)">🐱</div>
+            <div class="avatar" onclick="setAvatar('😎', this)">😎</div>
+        </div>
+        <button class="btn" style="margin-top:30px;" onclick="goMenu()">ДАЛЕЕ ➡️</button>
+    </div>
+
+    <!-- ЭКРАН 2: ГЛАВНОЕ МЕНЮ -->
+    <div id="scr-menu" class="screen">
+        <div id="user-info" style="font-size: 20px; margin-bottom: 20px;"></div>
+        <h1 style="color: #ff0055; text-shadow: 0 0 10px #ff0055; margin: 0 0 30px 0;">МЕГА-ГОЛОВОЛОМКА</h1>
+        <button class="btn" onclick="startMath()">📊 МАТЕМАТИКА</button>
+        <button class="btn" onclick="startFind()">👁️ НАЙДИ ОТЛИЧИЕ</button>
+    </div>
+
+    <!-- ЭКРАН 3: НАСТРОЙКА МАТЕМАТИКИ -->
+    <div id="scr-math-setup" class="screen">
+        <h2>ВЫБЕРИ СЛОЖНОСТЬ:</h2>
+        <button class="btn" style="background:#4caf50; border-color:#4caf50; color:#fff;" onclick="playMath('easy')">👶 ИЗИ (Для сестры)</button>
+        <button class="btn" style="background:#f44336; border-color:#f44336; color:#fff;" onclick="playMath('hard')">🏆 ХАРДКОР (Для мамы)</button>
+        <button class="btn" style="background:#333; border-color:#888; color:#fff; margin-top:20px;" onclick="goMenu()">НАЗАД 🔙</button>
+    </div>
+
+    <!-- ЭКРАН 4: ИГРА МАТЕМАТИКА -->
+    <div id="scr-math-game" class="screen">
+        <div style="display:flex; justify-content:space-between; width:100%; max-width:300px; font-size:18px; font-weight:bold; color:#00d2ff;">
+            <div id="math-timer">⏱️ ВРЕМЯ: 30</div>
+            <div id="math-score">⭐ ОЧКИ: 0</div>
+        </div>
+        <div id="math-question" style="font-size: 45px; font-weight: bold; margin: 40px 0; text-shadow: 0 0 15px #fff;">2 × 2 = ?</div>
+        <div id="math-answers" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 300px;"></div>
+    </div>
+
+    <!-- ЭКРАН 5: ИГРА НАЙДИ ОТЛИЧИЕ -->
+    <div id="scr-find-game" class="screen">
+        <div style="display:flex; justify-content:space-between; width:100%; max-width:300px; font-size:18px; font-weight:bold; color:#ff0055;">
+            <div>⏱️ ТАЙМЕР: БЕЗ ВРЕМЕНИ</div>
+            <div id="find-score">⭐ ОЧКИ: 0</div>
+        </div>
+        <h3 style="color:#00d2ff;">Найди картинку, где один круг другого цвета!</h3>
+        <div id="canvas-container">
+            <canvas id="can1" width="150" height="150" onclick="clickCanvas(1)"></canvas>
+            <canvas id="can2" width="150" height="150" onclick="clickCanvas(2)"></canvas>
+        </div>
+        <button class="btn" style="background:#333; border-color:#888; color:#fff; margin-top:30px;" onclick="goMenu()">В МЕНЮ 🏠</button>
+    </div>
+
+    <script>
+        let myAvatar = '🦊', score = 0, timeLeft = 30, gameInterval, correctAnswer = 0, currentDiff = 'easy';
+        let oddCanvas = 1;
+
+        function setScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        function setAvatar(av, el) {
+            myAvatar = av;
+            document.querySelectorAll('.avatar').forEach(a => a.classList.remove('selected-av'));
+            el.classList.add('selected-av');
+        }
+
+        function goMenu() {
+            document.getElementById('user-info').innerHTML = `Привет, игрок ${myAvatar}!`;
+            setScreen('scr-menu');
+        }
+
+        function startMath() { setScreen('scr-math-setup'); }
+
+        function playMath(diff) {
+            currentDiff = diff;
+            score = 0; timeLeft = 30;
+            document.getElementById('math-score').innerText = '⭐ ОЧКИ: ' + score;
+            document.getElementById('math-timer').innerText = '⏱️ ВРЕМЯ: ' + timeLeft;
+            setScreen('scr-math-game');
+            nextMathQuestion();
+            clearInterval(gameInterval);
+            gameInterval = setInterval(() => {
+                timeLeft--;
+                document.getElementById('math-timer').innerText = '⏱️ ВРЕМЯ: ' + timeLeft;
+                if(timeLeft <= 0) {
+                    clearInterval(gameInterval);
+                    alert(`⏱️ Время вышло!\nТвой итоговый счёт: ${score} очков!`);
+                    goMenu();
+                }
+            }, 1000);
+        }
+
+        function nextMathQuestion() {
+            let a, b, op = '×';
+            if (currentDiff === 'easy') {
+                a = Math.floor(Math.random() * 10) + 1;
+                b = Math.floor(Math.random() * 10) + 1;
+                op = Math.random() > 0.5 ? '+' : '-';
+                if(op === '-') { if(a < b) { let t = a; a = b; b = t; } }
+                correctAnswer = op === '+' ? a + b : a - b;
+            } else {
+                a = Math.floor(Math.random() * 12) + 2;
+                b = Math.floor(Math.random() * 9) + 2;
+                correctAnswer = a * b;
+            }
+
+            document.getElementById('math-question').innerText = `${a} ${op} ${b} = ?`;
+
+            let choices = [correctAnswer];
+            while(choices.length < 4) {
+                let wrong = correctAnswer + (Math.floor(Math.random() * 10) - 5);
+                if(wrong !== correctAnswer && wrong >= 0 && !choices.includes(wrong)) choices.push(wrong);
+            }
+            choices.sort(() => Math.random() - 0.5);
+
+            const container = document.getElementById('math-answers');
+            container.innerHTML = '';
+            choices.forEach(c => {
+                const b = document.createElement('button');
+                b.className = 'btn';
+                b.style.width = '100%';
+                b.innerText = c;
+                b.onclick = () => checkMathAnswer(c);
+                container.appendChild(b);
+            });
+        }
+
+        function checkMathAnswer(ans) {
+            if(ans === correctAnswer) {
+                score += currentDiff === 'easy' ? 10 : 25;
+            } else {
+                score = Math.max(0, score - 5);
+            }
+            document.getElementById('math-score').innerText = '⭐ ОЧКИ: ' + score;
+            nextMathQuestion();
+        }
+
+        function startFind() {
+            score = 0;
+            document.getElementById('find-score').innerText = '⭐ ОЧКИ: ' + score;
+            setScreen('scr-find-game');
+            generateDiffPictures();
+        }
+
+        function generateDiffPictures() {
+            oddCanvas = Math.random() > 0.5 ? 1 : 2;
+            let normalColor = `hsl(${Math.random() * 360}, 80%, 50%)`;
+            let diffColor = `hsl(${Math.random() * 360}, 80%, 65%)`; // Немного другой оттенок
+
+            drawCircles('can1', oddCanvas === 1 ? diffColor : normalColor);
+            drawCircles('can2', oddCanvas === 2 ? diffColor : normalColor);
+        }
+
+        function drawCircles(canvasId, color) {
+            const canvas = document.getElementById(canvasId);
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, 150, 150);
+            
+            // Рисуем несколько кругов
+            ctx.fillStyle = color;
+            ctx.beginPath(); ctx.arc(75, 75, 45, 0, Math.PI * 2); ctx.fill();
+            
+            ctx.fillStyle = "#fff";
+            ctx.beginPath(); ctx.arc(55, 65, 8, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(95, 65, 8, 0, Math.PI * 2); ctx.fill();
+        }
+
+        function clickCanvas(id) {
+            if(id === oddCanvas) {
+                score += 10;
+                document.getElementById('find-score').innerText = '⭐ ОЧКИ: ' + score;
+                generateDiffPictures();
+            } else {
+                alert('❌ Мимо! Ищи внимательнее!');
+            }
+        }
+    </script>
+</body>
+</html>
